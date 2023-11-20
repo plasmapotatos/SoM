@@ -8,10 +8,11 @@ import supervision as sv
 
 from typing import List
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
-from utils import refine_mask
+from utils import postprocess_masks, Visualizer
 
 HOME = os.getenv("HOME")
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+MINIMUM_AREA_THRESHOLD = 0.01
 
 SAM_CHECKPOINT = os.path.join(HOME, "app/weights/sam_vit_h_4b8939.pth")
 # SAM_CHECKPOINT = "weights/sam_vit_h_4b8939.pth"
@@ -27,19 +28,34 @@ MARKDOWN = """
 </h1>
 """
 
-sam = sam_model_registry[SAM_MODEL_TYPE](checkpoint=SAM_CHECKPOINT).to(device=DEVICE)
-mask_generator = SamAutomaticMaskGenerator(sam)
+SAM = sam_model_registry[SAM_MODEL_TYPE](checkpoint=SAM_CHECKPOINT).to(device=DEVICE)
+VISUALIZER = Visualizer()
 
 
 def inference(image: np.ndarray, annotation_mode: List[str]) -> np.ndarray:
-    return image
+    mask_generator = SamAutomaticMaskGenerator(SAM)
+    result = mask_generator.generate(image=image)
+    detections = sv.Detections.from_sam(result)
+    detections = postprocess_masks(
+        detections=detections,
+        area_threshold=MINIMUM_AREA_THRESHOLD)
+    bgr_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    annotated_image = VISUALIZER.visualize(
+        image=bgr_image,
+        detections=detections,
+        with_box="Box" in annotation_mode,
+        with_mask="Mask" in annotation_mode,
+        with_polygon="Polygon" in annotation_mode,
+        with_label="Mark" in annotation_mode)
+    return cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB)
 
 
 image_input = gr.Image(
     label="Input",
-    type="numpy")
+    type="numpy",
+    height=512)
 checkbox_annotation_mode = gr.CheckboxGroup(
-    choices=["Mark", "Mask", "Box"],
+    choices=["Mark", "Polygon", "Mask", "Box"],
     value=['Mark'],
     label="Annotation Mode")
 image_output = gr.Image(
