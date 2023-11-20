@@ -38,10 +38,8 @@ RUN pip install 'git+https://github.com/facebookresearch/segment-anything.git'
 RUN pip install 'git+https://github.com/facebookresearch/detectron2.git'
 
 # Download weights
-RUN mkdir -p $HOME/app/weigths
-RUN wget -c -O $HOME/app/weigths/sam_vit_h_4b8939.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
-
-RUN ls -la $HOME/app/weigths
+RUN mkdir -p $HOME/app/weights
+RUN wget -c -O $HOME/app/weights/sam_vit_h_4b8939.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
 
 COPY app.py .
 
