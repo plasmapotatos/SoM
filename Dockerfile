@@ -42,6 +42,7 @@ RUN mkdir -p $HOME/app/weights
 RUN wget -c -O $HOME/app/weights/sam_vit_h_4b8939.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
 
 COPY app.py .
+COPY utils.py .
 
 RUN find $HOME/app
 

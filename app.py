@@ -1,4 +1,5 @@
 import os
+import cv2
 import torch
 
 import gradio as gr
@@ -7,7 +8,7 @@ import supervision as sv
 
 from typing import List
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
-
+from utils import refine_mask
 
 HOME = os.getenv("HOME")
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
