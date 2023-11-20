@@ -31,11 +31,15 @@ WORKDIR $HOME/app
 RUN pip install torch==2.0.1+cu117 torchvision==0.15.2+cu117 -f https://download.pytorch.org/whl/torch_stable.html
 
 # Install dependencies
-RUN pip install --no-cache-dir gradio==3.50.2 opencv-python supervision
+RUN pip install --no-cache-dir gradio==3.50.2 opencv-python supervision pillow
 
 # Install SAM and Detectron2
 RUN pip install 'git+https://github.com/facebookresearch/segment-anything.git'
 RUN pip install 'git+https://github.com/facebookresearch/detectron2.git'
+
+# Download weights
+RUN mkdir -p $HOME/app/weigths
+RUN wget -c -O $HOME/app/weigths/sam_vit_h_4b8939.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
 
 COPY app.py .
 
