@@ -3,9 +3,7 @@ title: SoM
 emoji: 👁
 colorFrom: pink
 colorTo: yellow
-sdk: gradio
-sdk_version: 3.50.2
-app_file: app.py
+sdk: docker
 pinned: false
 license: mit
 ---
