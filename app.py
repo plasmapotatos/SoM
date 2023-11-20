@@ -14,8 +14,8 @@ HOME = os.getenv("HOME")
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 MINIMUM_AREA_THRESHOLD = 0.01
 
-SAM_CHECKPOINT = os.path.join(HOME, "app/weights/sam_vit_h_4b8939.pth")
-# SAM_CHECKPOINT = "weights/sam_vit_h_4b8939.pth"
+# SAM_CHECKPOINT = os.path.join(HOME, "app/weights/sam_vit_h_4b8939.pth")
+SAM_CHECKPOINT = "weights/sam_vit_h_4b8939.pth"
 SAM_MODEL_TYPE = "vit_h"
 
 MARKDOWN = """
@@ -26,13 +26,23 @@ MARKDOWN = """
     />  
     Set-of-Mark (SoM) Prompting Unleashes Extraordinary Visual Grounding in GPT-4V
 </h1>
+
+## 🚧 Roadmap
+
+- [ ] Support for alphabetic labels
+- [ ] Support for Semantic-SAM (multi-level)
+- [ ] Support for interactive mode
 """
 
 SAM = sam_model_registry[SAM_MODEL_TYPE](checkpoint=SAM_CHECKPOINT).to(device=DEVICE)
-VISUALIZER = Visualizer()
 
 
-def inference(image: np.ndarray, annotation_mode: List[str]) -> np.ndarray:
+def inference(
+    image: np.ndarray,
+    annotation_mode: List[str],
+    mask_alpha: float
+) -> np.ndarray:
+    visualizer = Visualizer(mask_opacity=mask_alpha)
     mask_generator = SamAutomaticMaskGenerator(SAM)
     result = mask_generator.generate(image=image)
     detections = sv.Detections.from_sam(result)
@@ -40,7 +50,7 @@ def inference(image: np.ndarray, annotation_mode: List[str]) -> np.ndarray:
         detections=detections,
         area_threshold=MINIMUM_AREA_THRESHOLD)
     bgr_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    annotated_image = VISUALIZER.visualize(
+    annotated_image = visualizer.visualize(
         image=bgr_image,
         detections=detections,
         with_box="Box" in annotation_mode,
@@ -58,6 +68,11 @@ checkbox_annotation_mode = gr.CheckboxGroup(
     choices=["Mark", "Polygon", "Mask", "Box"],
     value=['Mark'],
     label="Annotation Mode")
+slider_mask_alpha = gr.Slider(
+    minimum=0,
+    maximum=1,
+    value=0.05,
+    label="Mask Alpha")
 image_output = gr.Image(
     label="SoM Visual Prompt",
     type="numpy",
@@ -70,14 +85,17 @@ with gr.Blocks() as demo:
         with gr.Column():
             image_input.render()
             with gr.Accordion(label="Detailed prompt settings (e.g., mark type)", open=False):
-                checkbox_annotation_mode.render()
+                with gr.Row():
+                    checkbox_annotation_mode.render()
+                with gr.Row():
+                    slider_mask_alpha.render()
         with gr.Column():
             image_output.render()
             run_button.render()
 
     run_button.click(
         fn=inference,
-        inputs=[image_input, checkbox_annotation_mode],
+        inputs=[image_input, checkbox_annotation_mode, slider_mask_alpha],
         outputs=image_output)
 
 demo.queue().launch(debug=False, show_error=True)
