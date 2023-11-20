@@ -1,10 +1,10 @@
 ---
 title: SoM
-emoji: 🐠
-colorFrom: purple
+emoji: 👁
+colorFrom: pink
 colorTo: yellow
 sdk: gradio
-sdk_version: 4.4.1
+sdk_version: 3.50.2
 app_file: app.py
 pinned: false
 license: mit
