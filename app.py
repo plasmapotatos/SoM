@@ -14,8 +14,8 @@ HOME = os.getenv("HOME")
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 MINIMUM_AREA_THRESHOLD = 0.01
 
-# SAM_CHECKPOINT = os.path.join(HOME, "app/weights/sam_vit_h_4b8939.pth")
-SAM_CHECKPOINT = "weights/sam_vit_h_4b8939.pth"
+SAM_CHECKPOINT = os.path.join(HOME, "app/weights/sam_vit_h_4b8939.pth")
+# SAM_CHECKPOINT = "weights/sam_vit_h_4b8939.pth"
 SAM_MODEL_TYPE = "vit_h"
 
 MARKDOWN = """
@@ -27,11 +27,19 @@ MARKDOWN = """
     Set-of-Mark (SoM) Prompting Unleashes Extraordinary Visual Grounding in GPT-4V
 </h1>
 
+## 🚀 How To
+
+- Upload an image.
+- Click the `Run` button to generate the image with marks.
+- Pass OpenAI API 🔑. You can get one [here](https://platform.openai.com/api-keys).
+- Ask GPT-4V questions about the image in the chatbot.
+
 ## 🚧 Roadmap
 
 - [ ] Support for alphabetic labels
 - [ ] Support for Semantic-SAM (multi-level)
 - [ ] Support for interactive mode
+- [ ] Support for result highlighting
 """
 
 SAM = sam_model_registry[SAM_MODEL_TYPE](checkpoint=SAM_CHECKPOINT).to(device=DEVICE)
@@ -60,6 +68,10 @@ def inference(
     return cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB)
 
 
+def prompt(message, history):
+    return "response"
+
+
 image_input = gr.Image(
     label="Input",
     type="numpy",
@@ -77,6 +89,12 @@ image_output = gr.Image(
     label="SoM Visual Prompt",
     type="numpy",
     height=512)
+textbox_api_key = gr.Textbox(
+    label="OpenAI API KEY",
+    type="password")
+chatbot = gr.Chatbot(
+    label="GPT-4V + SoM",
+    height=256)
 run_button = gr.Button("Run")
 
 with gr.Blocks() as demo:
@@ -92,6 +110,9 @@ with gr.Blocks() as demo:
         with gr.Column():
             image_output.render()
             run_button.render()
+    textbox_api_key.render()
+    with gr.Row():
+        gr.ChatInterface(chatbot=chatbot, fn=prompt)
 
     run_button.click(
         fn=inference,

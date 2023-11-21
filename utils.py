@@ -113,11 +113,58 @@ def filter_masks_by_relative_area(
     return masks[min_area_filter & max_area_filter]
 
 
+def compute_iou(mask1: np.ndarray, mask2: np.ndarray) -> float:
+    """
+    Computes the Intersection over Union (IoU) of two masks.
+
+    Parameters:
+        mask1, mask2 (np.ndarray): Two mask arrays.
+
+    Returns:
+        float: The IoU of the two masks.
+    """
+    intersection = np.logical_and(mask1, mask2).sum()
+    union = np.logical_or(mask1, mask2).sum()
+    return intersection / union if union != 0 else 0
+
+
+def filter_highly_overlapping_masks(
+    masks: np.ndarray,
+    iou_threshold: float
+) -> np.ndarray:
+    """
+    Removes masks with high overlap from a set of masks.
+
+    Parameters:
+        masks (np.ndarray): A 3D numpy array with shape (N, H, W), where N is the
+            number of masks, and H and W are the height and width of the masks.
+        iou_threshold (float): The IoU threshold above which masks will be considered as
+            overlapping.
+
+    Returns:
+        np.ndarray: A 3D numpy array of masks with highly overlapping masks removed.
+    """
+    num_masks = masks.shape[0]
+    keep_mask = np.ones(num_masks, dtype=bool)
+
+    for i in range(num_masks):
+        for j in range(i + 1, num_masks):
+            if not keep_mask[i] or not keep_mask[j]:
+                continue
+
+            iou = compute_iou(masks[i, :, :], masks[j, :, :])
+            if iou > iou_threshold:
+                keep_mask[j] = False
+
+    return masks[keep_mask]
+
+
 def postprocess_masks(
     detections: sv.Detections,
-    area_threshold: float = 0.02,
-    min_relative_area: float = 0.02,
-    max_relative_area: float = 1.0
+    area_threshold: float = 0.01,
+    min_relative_area: float = 0.01,
+    max_relative_area: float = 1.0,
+    iou_threshold: float = 0.9
 ) -> sv.Detections:
     """
     Post-processes the masks of detection objects by removing small islands and filling
@@ -128,6 +175,8 @@ def postprocess_masks(
         area_threshold (float): Threshold for relative area to remove or fill features.
         min_relative_area (float): Minimum relative area threshold for detections.
         max_relative_area (float): Maximum relative area threshold for detections.
+        iou_threshold (float): The IoU threshold above which masks will be considered as
+            overlapping.
 
     Returns:
         np.ndarray: Post-processed masks.
@@ -148,6 +197,9 @@ def postprocess_masks(
         masks=masks,
         min_relative_area=min_relative_area,
         max_relative_area=max_relative_area)
+    masks = filter_highly_overlapping_masks(
+        masks=masks,
+        iou_threshold=iou_threshold)
 
     return sv.Detections(
         xyxy=sv.mask_to_xyxy(masks),
