@@ -14,8 +14,7 @@ from gpt4v import prompt_image
 HOME = os.getenv("HOME")
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-# SAM_CHECKPOINT = os.path.join(HOME, "app/weights/sam_vit_h_4b8939.pth")
-SAM_CHECKPOINT = "weights/sam_vit_h_4b8939.pth"
+SAM_CHECKPOINT = os.path.join(HOME, "app/weights/sam_vit_h_4b8939.pth")
 SAM_MODEL_TYPE = "vit_h"
 
 MARKDOWN = """
