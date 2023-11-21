@@ -1,8 +1,8 @@
 ---
 title: Set of Marks
-emoji: ✅
+emoji: ⚡
 colorFrom: pink
-colorTo: yellow
+colorTo: blue
 sdk: docker
 pinned: false
 license: mit
