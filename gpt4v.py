@@ -43,14 +43,14 @@ def compose_payload(image: np.ndarray, prompt: str) -> dict:
         "model": "gpt-4-vision-preview",
         "messages": [
             {
+                "role": "system",
+                "content": [
+                    META_PROMPT
+                ]
+            },
+            {
                 "role": "user",
                 "content": [
-                    {
-                        "role": "system",
-                        "content": [
-                            META_PROMPT
-                        ]
-                    },
                     {
                         "type": "text",
                         "text": prompt

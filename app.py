@@ -9,10 +9,10 @@ import supervision as sv
 from typing import List
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
 from utils import postprocess_masks, Visualizer
+from gpt4v import prompt_image
 
 HOME = os.getenv("HOME")
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-MINIMUM_AREA_THRESHOLD = 0.01
 
 SAM_CHECKPOINT = os.path.join(HOME, "app/weights/sam_vit_h_4b8939.pth")
 # SAM_CHECKPOINT = "weights/sam_vit_h_4b8939.pth"
@@ -26,13 +26,6 @@ MARKDOWN = """
     />  
     Set-of-Mark (SoM) Prompting Unleashes Extraordinary Visual Grounding in GPT-4V
 </h1>
-
-## 🚀 How To
-
-- Upload an image.
-- Click the `Run` button to generate the image with marks.
-- Pass OpenAI API 🔑. You can get one [here](https://platform.openai.com/api-keys).
-- Ask GPT-4V questions about the image in the chatbot.
 
 ## 🚧 Roadmap
 
@@ -55,8 +48,7 @@ def inference(
     result = mask_generator.generate(image=image)
     detections = sv.Detections.from_sam(result)
     detections = postprocess_masks(
-        detections=detections,
-        area_threshold=MINIMUM_AREA_THRESHOLD)
+        detections=detections)
     bgr_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     annotated_image = visualizer.visualize(
         image=bgr_image,
@@ -68,8 +60,16 @@ def inference(
     return cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB)
 
 
-def prompt(message, history):
-    return "response"
+def prompt(message, history, image: np.ndarray, api_key: str) -> str:
+    if api_key == "":
+        return "⚠️ Please set your OpenAI API key first"
+    if image is None:
+        return "⚠️ Please generate SoM visual prompt first"
+    return prompt_image(
+        api_key=api_key,
+        image=cv2.cvtColor(image, cv2.COLOR_BGR2RGB),
+        prompt=message
+    )
 
 
 image_input = gr.Image(
@@ -89,8 +89,10 @@ image_output = gr.Image(
     label="SoM Visual Prompt",
     type="numpy",
     height=512)
-textbox_api_key = gr.Textbox(
-    label="OpenAI API KEY",
+openai_api_key = gr.Textbox(
+    show_label=False,
+    placeholder="Before you start chatting, set your OpenAI API key here",
+    lines=1,
     type="password")
 chatbot = gr.Chatbot(
     label="GPT-4V + SoM",
@@ -102,7 +104,9 @@ with gr.Blocks() as demo:
     with gr.Row():
         with gr.Column():
             image_input.render()
-            with gr.Accordion(label="Detailed prompt settings (e.g., mark type)", open=False):
+            with gr.Accordion(
+                    label="Detailed prompt settings (e.g., mark type)",
+                    open=False):
                 with gr.Row():
                     checkbox_annotation_mode.render()
                 with gr.Row():
@@ -110,9 +114,13 @@ with gr.Blocks() as demo:
         with gr.Column():
             image_output.render()
             run_button.render()
-    textbox_api_key.render()
     with gr.Row():
-        gr.ChatInterface(chatbot=chatbot, fn=prompt)
+        openai_api_key.render()
+    with gr.Row():
+        gr.ChatInterface(
+            chatbot=chatbot,
+            fn=prompt,
+            additional_inputs=[image_output, openai_api_key])
 
     run_button.click(
         fn=inference,

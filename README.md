@@ -1,6 +1,6 @@
 ---
-title: SoM
-emoji: 👁
+title: Set of Marks
+emoji: ✅
 colorFrom: pink
 colorTo: yellow
 sdk: docker
