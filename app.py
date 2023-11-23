@@ -1,15 +1,16 @@
 import os
-import cv2
-import torch
+from typing import List, Dict
 
+import cv2
 import gradio as gr
 import numpy as np
 import supervision as sv
-
-from typing import List
+import torch
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
-from utils import postprocess_masks, Visualizer
+
 from gpt4v import prompt_image
+from utils import postprocess_masks, Visualizer
+from sam_utils import sam_interactive_inference
 
 HOME = os.getenv("HOME")
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -32,24 +33,33 @@ MARKDOWN = """
 
 - [ ] Support for alphabetic labels
 - [ ] Support for Semantic-SAM (multi-level)
-- [ ] Support for interactive mode
 - [ ] Support for result highlighting
+- [ ] Support for mask filtering based on granularity
 """
 
 SAM = sam_model_registry[SAM_MODEL_TYPE](checkpoint=SAM_CHECKPOINT).to(device=DEVICE)
 
 
 def inference(
-    image: np.ndarray,
+    image_and_mask: Dict[str, np.ndarray],
     annotation_mode: List[str],
     mask_alpha: float
 ) -> np.ndarray:
+    image = image_and_mask['image']
+    mask = cv2.cvtColor(image_and_mask['mask'], cv2.COLOR_RGB2GRAY)
+    is_interactive = not np.all(mask == 0)
     visualizer = Visualizer(mask_opacity=mask_alpha)
-    mask_generator = SamAutomaticMaskGenerator(SAM)
-    result = mask_generator.generate(image=image)
-    detections = sv.Detections.from_sam(result)
-    detections = postprocess_masks(
-        detections=detections)
+    if is_interactive:
+        detections = sam_interactive_inference(
+            image=image,
+            mask=mask,
+            model=SAM)
+    else:
+        mask_generator = SamAutomaticMaskGenerator(SAM)
+        result = mask_generator.generate(image=image)
+        detections = sv.Detections.from_sam(result)
+        detections = postprocess_masks(
+            detections=detections)
     bgr_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     annotated_image = visualizer.visualize(
         image=bgr_image,
@@ -76,7 +86,12 @@ def prompt(message, history, image: np.ndarray, api_key: str) -> str:
 image_input = gr.Image(
     label="Input",
     type="numpy",
-    height=512)
+    height=512,
+    tool="sketch",
+    interactive=True,
+    brush_radius=20.0,
+    brush_color="#FFFFFF"
+)
 checkbox_annotation_mode = gr.CheckboxGroup(
     choices=["Mark", "Polygon", "Mask", "Box"],
     value=['Mark'],

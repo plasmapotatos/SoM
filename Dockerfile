@@ -31,7 +31,7 @@ WORKDIR $HOME/app
 RUN pip install torch==2.0.1+cu117 torchvision==0.15.2+cu117 -f https://download.pytorch.org/whl/torch_stable.html
 
 # Install dependencies
-RUN pip install --no-cache-dir gradio==4.5.0 opencv-python supervision==0.17.0rc3 \
+RUN pip install --no-cache-dir gradio==3.50.2 opencv-python supervision==0.17.0rc3 \
     pillow requests
 
 # Install SAM and Detectron2
@@ -45,6 +45,7 @@ RUN wget -c -O $HOME/app/weights/sam_vit_h_4b8939.pth https://dl.fbaipublicfiles
 COPY app.py .
 COPY utils.py .
 COPY gpt4v.py .
+COPY sam_utils.py .
 
 RUN find $HOME/app
 
