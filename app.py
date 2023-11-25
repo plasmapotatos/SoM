@@ -86,7 +86,6 @@ def prompt(message, history, image: np.ndarray, api_key: str) -> str:
 image_input = gr.Image(
     label="Input",
     type="numpy",
-    height=512,
     tool="sketch",
     interactive=True,
     brush_radius=20.0,
@@ -103,8 +102,7 @@ slider_mask_alpha = gr.Slider(
     label="Mask Alpha")
 image_output = gr.Image(
     label="SoM Visual Prompt",
-    type="numpy",
-    height=512)
+    type="numpy")
 openai_api_key = gr.Textbox(
     show_label=False,
     placeholder="Before you start chatting, set your OpenAI API key here",
