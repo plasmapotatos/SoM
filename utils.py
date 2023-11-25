@@ -1,3 +1,6 @@
+import re
+from typing import List
+
 import cv2
 
 import numpy as np
@@ -205,3 +208,18 @@ def postprocess_masks(
         xyxy=sv.mask_to_xyxy(masks),
         mask=masks
     )
+
+
+def extract_numbers_in_brackets(text: str) -> List[int]:
+    """
+    Extracts all numbers enclosed in square brackets from a given string.
+
+    Args:
+        text (str): The string to be searched.
+
+    Returns:
+        List[int]: A list of integers found within square brackets.
+    """
+    pattern = r'\[(\d+)\]'
+    numbers = [int(num) for num in re.findall(pattern, text)]
+    return numbers

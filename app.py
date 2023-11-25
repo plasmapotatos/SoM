@@ -1,5 +1,5 @@
 import os
-from typing import List, Dict
+from typing import List, Dict, Tuple, Any
 
 import cv2
 import gradio as gr
@@ -16,6 +16,7 @@ HOME = os.getenv("HOME")
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 SAM_CHECKPOINT = os.path.join(HOME, "app/weights/sam_vit_h_4b8939.pth")
+# SAM_CHECKPOINT = "weights/sam_vit_h_4b8939.pth"
 SAM_MODEL_TYPE = "vit_h"
 
 MARKDOWN = """
@@ -44,7 +45,7 @@ def inference(
     image_and_mask: Dict[str, np.ndarray],
     annotation_mode: List[str],
     mask_alpha: float
-) -> np.ndarray:
+) -> Tuple[Tuple[np.ndarray, List[Any]], sv.Detections]:
     image = image_and_mask['image']
     mask = cv2.cvtColor(image_and_mask['mask'], cv2.COLOR_RGB2GRAY)
     is_interactive = not np.all(mask == 0)
@@ -68,7 +69,7 @@ def inference(
         with_mask="Mask" in annotation_mode,
         with_polygon="Polygon" in annotation_mode,
         with_label="Mark" in annotation_mode)
-    return cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB)
+    return (cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB), []), detections
 
 
 def prompt(message, history, image: np.ndarray, api_key: str) -> str:
@@ -81,6 +82,10 @@ def prompt(message, history, image: np.ndarray, api_key: str) -> str:
         image=cv2.cvtColor(image, cv2.COLOR_BGR2RGB),
         prompt=message
     )
+
+
+def on_image_input_clear():
+    return None, None
 
 
 image_input = gr.Image(
@@ -100,9 +105,8 @@ slider_mask_alpha = gr.Slider(
     maximum=1,
     value=0.05,
     label="Mask Alpha")
-image_output = gr.Image(
-    label="SoM Visual Prompt",
-    type="numpy")
+image_output = gr.AnnotatedImage(
+    label="SoM Visual Prompt")
 openai_api_key = gr.Textbox(
     show_label=False,
     placeholder="Before you start chatting, set your OpenAI API key here",
@@ -115,6 +119,7 @@ run_button = gr.Button("Run")
 
 with gr.Blocks() as demo:
     gr.Markdown(MARKDOWN)
+    detections_state = gr.State()
     with gr.Row():
         with gr.Column():
             image_input.render()
@@ -139,6 +144,10 @@ with gr.Blocks() as demo:
     run_button.click(
         fn=inference,
         inputs=[image_input, checkbox_annotation_mode, slider_mask_alpha],
-        outputs=image_output)
+        outputs=[image_output, detections_state])
+    image_input.clear(
+        fn=on_image_input_clear,
+        outputs=[image_output, detections_state]
+    )
 
 demo.queue().launch(debug=False, show_error=True)
