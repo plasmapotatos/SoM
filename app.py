@@ -9,8 +9,8 @@ import torch
 from segment_anything import sam_model_registry
 
 from gpt4v import prompt_image
-from utils import postprocess_masks, Visualizer, extract_numbers_in_brackets
 from sam_utils import sam_interactive_inference, sam_inference
+from utils import postprocess_masks, Visualizer, extract_numbers_in_brackets
 
 HOME = os.getenv("HOME")
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -110,6 +110,9 @@ def highlight(
 
     detections: sv.Detections = state[DETECTIONS_KEY]
     annotated_image: np.ndarray = state[ANNOTATED_IMAGE_KEY]
+
+    if len(history) == 0:
+        return None
 
     response = history[-1][-1]
     detections_ids = extract_numbers_in_brackets(text=response)
