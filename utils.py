@@ -1,7 +1,5 @@
-import re
-from typing import List
-
 import cv2
+import som
 
 import numpy as np
 import supervision as sv
@@ -13,7 +11,7 @@ class Visualizer:
         self,
         line_thickness: int = 2,
         mask_opacity: float = 0.1,
-        text_scale: float = 0.5
+        text_scale: float = 0.6
     ) -> None:
         self.box_annotator = sv.BoundingBoxAnnotator(
             color_lookup=sv.ColorLookup.INDEX,
@@ -25,6 +23,8 @@ class Visualizer:
             color_lookup=sv.ColorLookup.INDEX,
             thickness=line_thickness)
         self.label_annotator = sv.LabelAnnotator(
+            color=sv.Color.black(),
+            text_color=sv.Color.white(),
             color_lookup=sv.ColorLookup.INDEX,
             text_position=sv.Position.CENTER_OF_MASS,
             text_scale=text_scale)
@@ -85,7 +85,11 @@ def refine_mask(
         relative_area = area / total_area
         if relative_area < area_threshold:
             cv2.drawContours(
-                mask, [contour], -1, (0 if mode == 'islands' else 255), -1
+                image=mask,
+                contours=[contour],
+                contourIdx=-1,
+                color=(0 if mode == 'islands' else 255),
+                thickness=-1
             )
 
     return np.where(mask > 0, 1, 0).astype(bool)
@@ -114,52 +118,6 @@ def filter_masks_by_relative_area(
     min_area_filter = relative_areas >= min_relative_area
     max_area_filter = relative_areas <= max_relative_area
     return masks[min_area_filter & max_area_filter]
-
-
-def compute_iou(mask1: np.ndarray, mask2: np.ndarray) -> float:
-    """
-    Computes the Intersection over Union (IoU) of two masks.
-
-    Parameters:
-        mask1, mask2 (np.ndarray): Two mask arrays.
-
-    Returns:
-        float: The IoU of the two masks.
-    """
-    intersection = np.logical_and(mask1, mask2).sum()
-    union = np.logical_or(mask1, mask2).sum()
-    return intersection / union if union != 0 else 0
-
-
-def filter_highly_overlapping_masks(
-    masks: np.ndarray,
-    iou_threshold: float
-) -> np.ndarray:
-    """
-    Removes masks with high overlap from a set of masks.
-
-    Parameters:
-        masks (np.ndarray): A 3D numpy array with shape (N, H, W), where N is the
-            number of masks, and H and W are the height and width of the masks.
-        iou_threshold (float): The IoU threshold above which masks will be considered as
-            overlapping.
-
-    Returns:
-        np.ndarray: A 3D numpy array of masks with highly overlapping masks removed.
-    """
-    num_masks = masks.shape[0]
-    keep_mask = np.ones(num_masks, dtype=bool)
-
-    for i in range(num_masks):
-        for j in range(i + 1, num_masks):
-            if not keep_mask[i] or not keep_mask[j]:
-                continue
-
-            iou = compute_iou(masks[i, :, :], masks[j, :, :])
-            if iou > iou_threshold:
-                keep_mask[j] = False
-
-    return masks[keep_mask]
 
 
 def postprocess_masks(
@@ -200,7 +158,7 @@ def postprocess_masks(
         masks=masks,
         min_relative_area=min_relative_area,
         max_relative_area=max_relative_area)
-    masks = filter_highly_overlapping_masks(
+    masks = som.mask_non_max_suppression(
         masks=masks,
         iou_threshold=iou_threshold)
 
@@ -208,18 +166,3 @@ def postprocess_masks(
         xyxy=sv.mask_to_xyxy(masks),
         mask=masks
     )
-
-
-def extract_numbers_in_brackets(text: str) -> List[int]:
-    """
-    Extracts all numbers enclosed in square brackets from a given string.
-
-    Args:
-        text (str): The string to be searched.
-
-    Returns:
-        List[int]: A list of integers found within square brackets.
-    """
-    pattern = r'\[(\d+)\]'
-    numbers = [int(num) for num in re.findall(pattern, text)]
-    return numbers

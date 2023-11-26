@@ -4,13 +4,13 @@ from typing import List, Dict, Tuple, Any, Optional
 import cv2
 import gradio as gr
 import numpy as np
+import som
 import supervision as sv
 import torch
 from segment_anything import sam_model_registry
 
-from gpt4v import prompt_image
 from sam_utils import sam_interactive_inference, sam_inference
-from utils import postprocess_masks, Visualizer, extract_numbers_in_brackets
+from utils import postprocess_masks, Visualizer
 
 HOME = os.getenv("HOME")
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -21,17 +21,21 @@ SAM_MODEL_TYPE = "vit_h"
 
 ANNOTATED_IMAGE_KEY = "annotated_image"
 DETECTIONS_KEY = "detections"
-
 MARKDOWN = """
-[![arXiv](https://img.shields.io/badge/arXiv-1703.06870v3-b31b1b.svg)](https://arxiv.org/pdf/2310.11441.pdf)
-
-<h1 style='text-align: center'>
-    <img 
-        src='https://som-gpt4v.github.io/website/img/som_logo.png' 
-        style='height:50px; display:inline-block'
-    />  
-    Set-of-Mark (SoM) Prompting Unleashes Extraordinary Visual Grounding in GPT-4V
-</h1>
+<div align='center'>
+    <h1>
+        <img 
+            src='https://som-gpt4v.github.io/website/img/som_logo.png' 
+            style='height:50px; display:inline-block'
+        />  
+        Set-of-Mark (SoM) Prompting Unleashes Extraordinary Visual Grounding in GPT-4V
+    </h1>
+    <br>
+    [<a href="https://arxiv.org/abs/2109.07529"> arXiv paper </a>] 
+    [<a href="https://som-gpt4v.github.io"> project page </a>]
+    [<a href="https://github.com/roboflow/set-of-mark"> python package </a>]
+    [<a href="https://github.com/microsoft/SoM"> code </a>]
+</div>
 
 ## 🚧 Roadmap
 
@@ -90,7 +94,7 @@ def prompt(
         return "⚠️ Please set your OpenAI API key first"
     if state is None or ANNOTATED_IMAGE_KEY not in state:
         return "⚠️ Please generate SoM visual prompt first"
-    return prompt_image(
+    return som.prompt_image(
         api_key=api_key,
         image=cv2.cvtColor(state[ANNOTATED_IMAGE_KEY], cv2.COLOR_BGR2RGB),
         prompt=message
@@ -114,15 +118,17 @@ def highlight(
     if len(history) == 0:
         return None
 
-    response = history[-1][-1]
-    detections_ids = extract_numbers_in_brackets(text=response)
-    highlighted_detections = [
-        (detections.mask[detection_id], str(detection_id))
-        for detection_id
-        in detections_ids
+    text = history[-1][-1]
+    relevant_masks = som.extract_relevant_masks(
+        text=text,
+        detections=detections
+    )
+    relevant_masks = [
+        (mask, mark)
+        for mark, mask
+        in relevant_masks.items()
     ]
-
-    return annotated_image, highlighted_detections
+    return annotated_image, relevant_masks
 
 
 image_input = gr.Image(
@@ -131,7 +137,8 @@ image_input = gr.Image(
     tool="sketch",
     interactive=True,
     brush_radius=20.0,
-    brush_color="#FFFFFF"
+    brush_color="#FFFFFF",
+    height=512
 )
 checkbox_annotation_mode = gr.CheckboxGroup(
     choices=["Mark", "Polygon", "Mask", "Box"],
@@ -147,7 +154,8 @@ image_output = gr.AnnotatedImage(
     color_map={
         str(i): sv.ColorPalette.default().by_idx(i).as_hex()
         for i in range(64)
-    }
+    },
+    height=512
 )
 openai_api_key = gr.Textbox(
     show_label=False,
