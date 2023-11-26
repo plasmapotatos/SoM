@@ -2,7 +2,16 @@ import numpy as np
 import supervision as sv
 
 from segment_anything.modeling.sam import Sam
-from segment_anything import SamPredictor
+from segment_anything import SamPredictor, SamAutomaticMaskGenerator
+
+
+def sam_inference(
+    image: np.ndarray,
+    model: Sam
+) -> sv.Detections:
+    mask_generator = SamAutomaticMaskGenerator(model)
+    result = mask_generator.generate(image=image)
+    return sv.Detections.from_sam(result)
 
 
 def sam_interactive_inference(
